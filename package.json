@@ -1,0 +1,27 @@
+{
+  "author": {
+    "name": "Mitra Ardron",
+    "email": "mitra@mitra.biz",
+    "url": "http://www.mitra.biz"
+  },
+  "bugs": {
+    "url": "https://github.com/mitra42/parallel-streams/issues"
+  },
+  "name": "parallel-streams",
+  "dependencies": {
+    "debug": "latest",
+    "readable-stream": "latest",
+  },
+  "description": "Array functions and parallelism for streams",
+  "devDependencies": {},
+  "homepage": "https://github.com/mitra42/parallel-streams#readme",
+  "keywords": [],
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mitra42/parallel-streams.git"
+  },
+  "scripts": {
+  },
+  "version": "0.0.2"
+}
