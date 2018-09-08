@@ -10,7 +10,7 @@
   "name": "parallel-streams",
   "dependencies": {
     "debug": "latest",
-    "readable-stream": "latest",
+    "readable-stream": "latest"
   },
   "description": "Array functions and parallelism for streams",
   "devDependencies": {},
