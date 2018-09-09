@@ -1,6 +1,6 @@
 process.env.DEBUG="parallel-streams:*";  // Get highest level debugging of these two libraries, must be before require(dweb-transports) //TODO-MIRROR check using GUN for metadata
 
-const ParallelStream = require('parallel-streams.js');
+const ParallelStream = require('./index.js');
 
 ParallelStream.from([0,1,2,3], {name: "Munching"})  // Create a stream called "Munching" that will output the items 0,1,2,3
     .log(m=>[m], {name:"Stream 0..3"}); // 0 1 2 3  Log each item in the stream before passing it on.

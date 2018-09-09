@@ -224,21 +224,22 @@ class ParallelStream extends stream.Transform {
     }
 
     fork(nstreams, options={}) {
-        /*
+    /*
         Fork a stream into multiple streams,
         nstreams    Number of streams to fork into
         returns     Array of Parallel streams.
 
         Usage of fork is slightly different
         let ss =  parallelstream.fork(2).streams;
-        ss[0].log ...; ss[1].filter.... etc
+     ss[0].log ...; ss[1].filter.... etc
 
         Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
-         */
+      */
         const defaultoptions = {
-            name: "fork"
+            name: "fork",
         }
         let ws = new stream.Writable(Object.assign({
+            objectMode: true,
             write(o, encoding, cb) {
                 if (typeof encoding === 'function') {
                     cb = encoding;
@@ -261,7 +262,7 @@ class ParallelStream extends stream.Transform {
                 this.streams.map(s => s.end());
                 cb();
             }
-        }, defaultoptions, options));
+        }, options));
         ws.streams = Array.from(Array(nstreams)).map(unused=>new ParallelStream(Object.assign(defaultoptions, options)));
         return this.pipe(ws)
     }
