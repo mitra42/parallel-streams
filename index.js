@@ -48,6 +48,7 @@ class ParallelStream extends stream.Transform {
 
     _final(cb) {
         if (this.paralleloptions.limit) {
+            // If running parallel then allow all threads to finish
             if (this.paralleloptions.count) {
                 this.debug("waiting on %d of max %d threads to close", this.paralleloptions.count,this.paralleloptions.max);
                 setTimeout(()=>this._final(cb), 1000);
@@ -57,7 +58,7 @@ class ParallelStream extends stream.Transform {
         } else {
             this.debug("Closing");
         }
-        cb();
+        cb();   // This cb is what calls flush(cb) if defined
     }
 
     _parallel(data, encoding, cb) {
@@ -189,17 +190,24 @@ class ParallelStream extends stream.Transform {
             Usage example: `parallelstream.filter(m=>m>1 && m<4)`
 
          */
-        return this.pipe(
-            new ParallelStream(Object.assign({
-                parallel(o, encoding, cb) {
-                    if (filterfunction(o)) {
-                        this.push(o)
-                    }
-                    cb();
-                },
-                name: "filter"
-            }, options))
-        );
+        let ps = new ParallelStream(Object.assign({
+            parallel(o, encoding, cb) {
+                this.countIn++;
+                if (filterfunction(o)) {
+                    this.push(o);
+                    this.countOut++;
+                }
+                cb();
+            },
+            flush(cb) { // Note this is called as the cb in _final() so paralell threads have all finished
+                this.debug("Filter passed %d of %d", this.countOut, this.countIn);
+                cb()
+            },
+            name: "filter"
+        }, options));
+        ps.countIn = 0;
+        ps.countOut = 0;
+        return this.pipe(ps);   // Note this is upstream
     }
 
     slice(begin, end, options={}) {
@@ -224,17 +232,17 @@ class ParallelStream extends stream.Transform {
     }
 
     fork(nstreams, options={}) {
-    /*
-        Fork a stream into multiple streams,
-        nstreams    Number of streams to fork into
-        returns     Array of Parallel streams.
+        /*
+            Fork a stream into multiple streams,
+            nstreams    Number of streams to fork into
+            returns     Array of Parallel streams.
 
-        Usage of fork is slightly different
-        let ss =  parallelstream.fork(2).streams;
-     ss[0].log ...; ss[1].filter.... etc
+            Usage of fork is slightly different
+            let ss =  parallelstream.fork(2).streams;
+         ss[0].log ...; ss[1].filter.... etc
 
-        Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
-      */
+            Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
+          */
         const defaultoptions = {
             name: "fork",
         }
@@ -345,13 +353,10 @@ class ParallelStream extends stream.Transform {
                 };
                 cb() // Note doesnt push
             },
-            flush(cb) {
-                if (this.paralleloptions.limit && this.paralleloptions.count) {
-                    setTimeout(() => this.flush.call(this, cb), 1000);
-                } else {
-                    if (finalcb) finalcb.call(this, this.acc);
-                    cb()
-                } },
+            flush(cb) { // Note called in _final() after parallel threads (if present) have closed
+                if (finalcb) finalcb.call(this, this.acc);
+                cb();
+            },
         }, options));
         ps.i = 0;
         ps.acc = initialvalue;

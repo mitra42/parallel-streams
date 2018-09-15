@@ -1,4 +1,11 @@
-process.env.DEBUG="parallel-streams:*";  // Get highest level debugging of these two libraries, must be before require(dweb-transports) //TODO-MIRROR check using GUN for metadata
+/*
+This file has some examples of using the array functions
+
+TODO add examples of the concurrency functions.
+
+ */
+
+process.env.DEBUG="parallel-streams:*";  //Get debugging on all streams
 
 const ParallelStream = require('./index.js');
 
