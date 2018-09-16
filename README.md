@@ -83,6 +83,11 @@ Each function takes options which are passed to the ParallelStreams constructor.
 Each function defaults to having a name which is the name of the function, 
 but can be overwritten by setting the option `name: "...."` 
 
+Each function (except `from()`)can be called either as a function on an existing ParallelStream
+or as a static function e.g. if ps is a parallelstream and rs is a readable
+`ps.log(m=>m)` or `ws.pipe(ParallelStream.log(m=>m))`.
+This is intended to allow smooth integration with Readable, Writable & TransformStreams.
+
 #### ParallelStream.prototype.log(f(data)=>string, options={})
 
 Log output using debug("parallel-streams:<name>"), 

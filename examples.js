@@ -39,7 +39,7 @@ let foo = ParallelStream.from([0,1])
     .log(m=>[m], {name: "ForkB 0,1"});
 
 
-/*
+
 // Reduce works, but note that you have to use the 'function' syntax instead of (a,b)=>(a+b) if you want to use "this" for debugging.
 // The result here should be 110 as 0 is used as the initial value
 ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i + d+1) }, 0, function(res) {this.debug("SUM=", res)}, { name: "Sum=110" });
@@ -47,4 +47,5 @@ ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i +
 ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i + d+1) }, undefined, function(res) {this.debug("SUM=", res)}, { name: "Sum=109" });
 // Reduce with no arguments is useful at the end of a chain of streams to avoid the last stream pushing back when it can't write.
 ParallelStream.from([10,20,30,40]) .reduce();
-*/
+
+

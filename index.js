@@ -105,10 +105,7 @@ class ParallelStream extends stream.Transform {
         }
 
     }
-
-    //TODO Building on pattern in https://nodejs.org/api/stream.html#stream_implementing_a_transform_stream
-
-    log(logfunction, options={}) {
+    static log(logfunction, options={}) {
         /*
         Log output using debug("parallel-streams:<name>"),
             `f(data)` should return an array suitable for passing to debug(),
@@ -119,8 +116,7 @@ class ParallelStream extends stream.Transform {
         input:  object
         output: same object
         */
-        return this.pipe(
-            new ParallelStream(Object.assign({
+        return new ParallelStream(Object.assign({
                 parallel(data, encoding, cb) {
                     let a = logfunction(data);
                     a = Array.isArray(a) ? a : [a];
@@ -129,16 +125,17 @@ class ParallelStream extends stream.Transform {
                 },
                 highWaterMark: 99999,
                 name: "log"
-            },options))
-        );
+            },options));
+    }
+    log(logfunction, options={}) {
+        return this.pipe(ParallelStream.log(logfunction, options));
     }
 
-    map(mapfunction, options={}) {
+    static map(mapfunction, options={}) {
         /*
         Transform input data to output data like `Array.prototype.map()`
         */
-        return this.pipe(
-            new ParallelStream(Object.assign({
+        return new ParallelStream(Object.assign({
                 parallel(o, encoding, cb) {
                     let p = mapfunction(o, options.async ? cb : undefined);
                     if (p instanceof Promise) {
@@ -151,11 +148,13 @@ class ParallelStream extends stream.Transform {
                     }
                 },
                 name: "map"
-            }, options))
-        );
+            }, options));
+    }
+    map(mapfunction, options={}) {
+        return this.pipe(ParallelStream.map(mapfunction, options));
     }
 
-    flatten(options={}) {
+    static flatten(options={}) {
         /*
         input stream - of arrays
         output stream - expand arrays into a single stream
@@ -166,8 +165,7 @@ class ParallelStream extends stream.Transform {
         TODO could add options as to whether should handle single objs as well as arrays and whether to ignore undefined
          */
         // Usage example  writable.map(m => m*2, {name: "foo" }
-        return this.pipe(
-            new ParallelStream(Object.assign({
+        return new ParallelStream(Object.assign({
                 parallel(oo, encoding, cb) {
                     if (Array.isArray(oo)) {
                         oo.forEach(o => this.push(o));
@@ -177,11 +175,11 @@ class ParallelStream extends stream.Transform {
                     cb();
                 },
                 name: "flatten"
-            }, options))
-        );
+            }, options));
     }
+    flatten(options={}) { return this.pipe(ParallelStream.flatten(options)); }
 
-    filter(filterfunction, options={}) {
+    static filter(filterfunction, options={}) {
         /*
             filterfunction(data) => boolean  Filter function that returns true for items to output
 
@@ -207,10 +205,11 @@ class ParallelStream extends stream.Transform {
         }, options));
         ps.countIn = 0;
         ps.countOut = 0;
-        return this.pipe(ps);   // Note this is upstream
+        return ps;   // Note this is upstream
     }
+    filter(filterfunction, options={}) { return this.pipe(ParallelStream.filter(filterfunction, options)); }
 
-    slice(begin, end, options={}) {
+    static slice(begin, end, options={}) {
         /*
         begin: first item to pass,
         end: one after last item
@@ -228,54 +227,11 @@ class ParallelStream extends stream.Transform {
             name: "slice"
         }, options));
         ps.count = 0;
-        return this.pipe(ps);
+        return ps;
     }
-    /* OBSOLETE STYLE using a number of streams and returning an array, seems more javascripty to use callbacks
-    fork(nstreams, options={}) {
-        /-*
-            Fork a stream into multiple streams,
-            nstreams    Number of streams to fork into
-            returns     Array of Parallel streams.
+    slice(begin, end, options={}) { return this.pipe(ParallelStream.slice(begin, end, options)); }
 
-            Usage of fork is slightly different
-            let ss =  parallelstream.fork(2).streams;
-         ss[0].log ...; ss[1].filter.... etc
-
-            Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
-          *-/
-        const defaultoptions = {
-            name: "fork",
-        }
-        let ws = new stream.Writable(Object.assign({
-            objectMode: true,
-            write(o, encoding, cb) {
-                if (typeof encoding === 'function') {
-                    cb = encoding;
-                    encoding = null;
-                } // Allow missing encoding
-                try {
-                    let firstpushback = this.streams.map(s => s.write(o) ? false : s).find(s => !!s); // Writes to all streams, catches first that has pushback
-                    if (firstpushback) {
-                        this.debug("Pushback from %s", firstpushback.name);
-                        firstpushback.once("drain", cb); // Just wait on first pushback to be ready, should be ok as if 2nd hasn't cleared it will pushback on next write
-                    } else {
-                        cb();
-                    }
-                } catch (err) { // Unlikely to have an error since should catch in pushbackable fork
-                    this.streams.map(s => s.destroy(new Error(`Failure in ${this.name}._write: ${err.message}`)));
-                    cb(err);
-                }
-            },
-            final(cb) {
-                this.streams.map(s => s.end());
-                cb();
-            }
-        }, options));
-        ws.streams = Array.from(Array(nstreams)).map(unused=>new ParallelStream(Object.assign(defaultoptions, options)));
-        return this.pipe(ws)
-    }
-    */
-    fork(...args) {
+    static fork(...args) { //TODO need static version of this
         /*
             Fork a stream into multiple streams,
             args    each cb(parallelstream)
@@ -291,18 +247,20 @@ class ParallelStream extends stream.Transform {
         const defaultoptions = {
             name: "fork",
         }
-        let ws = new stream.Writable(Object.assign({
+        let ws = new ParallelStream(Object.assign({
             objectMode: true,
-            write(o, encoding, cb) {
+            parallel(o, encoding, cb) {
                 if (typeof encoding === 'function') {
                     cb = encoding;
                     encoding = null;
                 } // Allow missing encoding
                 try {
                     let firstpushback = this.streams.map(s => s.write(o) ? false : s).find(s => !!s); // Writes to all streams, catches first that has pushback
+                    this.push(o); // Send on main channel
                     if (firstpushback) {
                         this.debug("Pushback from %s", firstpushback.name);
                         firstpushback.once("drain", cb); // Just wait on first pushback to be ready, should be ok as if 2nd hasn't cleared it will pushback on next write
+                        // Pushback on main stream should be automatic
                     } else {
                         cb();
                     }
@@ -313,21 +271,20 @@ class ParallelStream extends stream.Transform {
             },
             final(cb) {
                 this.streams.map(s => s.end());
-                cb();
+                cb(); // Should generate end on main stream
             }
-        },options));
+        },Object.assign(defaultoptions, options)));
 
         ws.streams = args.map(f => {
             let s = new ParallelStream(Object.assign(defaultoptions, options));
             f(s);
             return s;
         });
-        let laststream = new ParallelStream(Object.assign(defaultoptions, options));
-        ws.streams.push(laststream);
-        this.pipe(ws); //this is the upstream pipe, returns ws
-        return laststream;
+        return ws;  // Main stream for chaining
     }
-    uniq(uniqfunction, options={}) {
+    fork(...args) { return this.pipe(ParallelStream.fork(...args)); }
+
+    static uniq(uniqfunction, options={}) {
         /*
         uniqfunction(data) => string: return a string that can be used to compare uniqueness (for example an id)
         options { uniq: optional array to use for checking uniqueness (allows testing against existing list)
@@ -350,8 +307,9 @@ class ParallelStream extends stream.Transform {
             },
             name: "uniq"
         }, options));
-        return this.pipe(ps);
+        return ps;
     }
+    uniq(uniqfunction, options={}) { return this.pipe(ParallelStream.uniq(uniqfunction, options)); }
 
     static from(arr, options={}) { // Static
         /*
@@ -390,9 +348,14 @@ class ParallelStream extends stream.Transform {
             }
         }
     }
-    reduce(reducefunction, initialvalue, finalcb, options={}) {
+    static reduce(reducefunction, initialvalue, finalcb, options={}) {
         /*
+            reducefunction(acc,d,i) acc = result so far, d = this item, i = index (starting 0), returns new acc
+            initialvalue            value to set acc to for start
+            finalcb(acc)            Called with final value of acc
 
+            Note - if initialvalue is undefined, the first item in the stream will be the initial acc,
+            and index will start at 1 for the first invocation of reducefunction which will be called with the second element.
          */
         if (typeof finalcb === "object") { options = finalcb; finalcb = undefined; }
         let ps = new ParallelStream(Object.assign({
@@ -414,8 +377,10 @@ class ParallelStream extends stream.Transform {
         ps.i = 0;
         ps.acc = initialvalue;
         // Init will be run by Parallel constructor
-        this.pipe(ps);
-
+        return ps;
+    }
+    reduce(reducefunction, initialvalue, finalcb, options={}) {
+        return this.pipe(ParallelStream.reduce(reducefunction, initialvalue, finalcb, options));
     }
 
 }
