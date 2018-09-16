@@ -156,7 +156,7 @@ class ParallelStream extends stream.Transform {
 
     static flatten(options={}) {
         /*
-        input stream - of arrays
+        input stream - of arrays or of streams
         output stream - expand arrays into a single stream
 
         Flatten a stream of arrays into a stream of items in those arrays,
@@ -165,17 +165,27 @@ class ParallelStream extends stream.Transform {
         TODO could add options as to whether should handle single objs as well as arrays and whether to ignore undefined
          */
         // Usage example  writable.map(m => m*2, {name: "foo" }
-        return new ParallelStream(Object.assign({
+        let ps = new ParallelStream(Object.assign({
                 parallel(oo, encoding, cb) {
                     if (Array.isArray(oo)) {
                         oo.forEach(o => this.push(o));
+                        cb();
+                    } else if (oo instanceof stream.Readable)  { //Includes Transform and Parallel streams
+                        //console.log("XXXpiping")
+                        oo.pipe(ps);
+                        cb();
+                        /* Alternative Doesnt work - had hoped would preserve order but it has write after end
+                        oo.pipe(ps,{ end: false });
+                        oo.on('end', () => {cb(); console.log("XXX oo ending")})
+                        */
                     } else if ((typeof oo) !== "undefined") {
                         this.push(oo);
+                        cb();
                     }
-                    cb();
                 },
                 name: "flatten"
             }, options));
+        return ps;
     }
     flatten(options={}) { return this.pipe(ParallelStream.flatten(options)); }
 
@@ -335,7 +345,7 @@ class ParallelStream extends stream.Transform {
                 let i;
                 while (typeof(i = ediblearr.shift()) !== "undefined") {
                     if (!through.write(i)) { // It still got written, but there is pushback
-                        this.debug("Pushback from %s, %d items left", through.name, ediblearr.length);
+                        through.debug("Pushing back on array, %d items left", ediblearr.length);
                         through.once("drain", _pushbackablewrite);
                         return; // Without finishing
                     }
@@ -358,6 +368,8 @@ class ParallelStream extends stream.Transform {
             and index will start at 1 for the first invocation of reducefunction which will be called with the second element.
          */
         if (typeof finalcb === "object") { options = finalcb; finalcb = undefined; }
+        if (typeof initialvalue === "object") { options = initialvalue; initialvalue = undefined; }
+        if (typeof reducefunction === "object") { options = reducefunction; reducefunction = undefined; }
         let ps = new ParallelStream(Object.assign({
             name: "reduce",
             parallel(data, encoding, cb) {

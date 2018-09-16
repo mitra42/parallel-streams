@@ -83,10 +83,15 @@ Each function takes options which are passed to the ParallelStreams constructor.
 Each function defaults to having a name which is the name of the function, 
 but can be overwritten by setting the option `name: "...."` 
 
+#### Piping Readable Streams into ParallelStreams
+
 Each function (except `from()`)can be called either as a function on an existing ParallelStream
-or as a static function e.g. if ps is a parallelstream and rs is a readable
-`ps.log(m=>m)` or `ws.pipe(ParallelStream.log(m=>m))`.
+or as a static function e.g. if `ps` is a parallelstream and `rs` is a readable
+`ps.log(m=>m)` or `rs.pipe(ParallelStream.log(m=>m))`.
 This is intended to allow smooth integration with Readable, Writable & TransformStreams.
+
+Note that a common mistake is: `rs=ParallelStream.log(m=>m).reduce(); ps.pipe(rs)`. 
+This won't work because rs will be the `reduce` and `ps` will be piped there rather than to the log. 
 
 #### ParallelStream.prototype.log(f(data)=>string, options={})
 
@@ -98,11 +103,12 @@ Passes input to the next stream unchanged (unless f(input) has side-effects)
 
 e.g. .log(data => ["Handling %o", data])
 
-#### ParallelStream.prototype.map(f(data)=>obj, options={})
+#### ParallelStream.prototype.map(f(data)=>obj, options={}) or (f(data,cb)=>obj, {async:true,...})
 
 Transform input data to output data like `Array.prototype.map()`
 
 e.g. `.map(data => inp**2)`
+Or if function is async something like `.map((data, cb)=> f(data, cb))` or `.map((data, cb)=> f(data, (err,data)=>{dosomethingtodata; cb(err,newdata)})`
 
 #### ParallelStream.prototype.flatten(options={})
 

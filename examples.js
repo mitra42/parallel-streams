@@ -9,6 +9,7 @@ process.env.DEBUG="parallel-streams:*";  //Get debugging on all streams
 
 const ParallelStream = require('./index.js');
 
+/*
 ParallelStream.from([0,1,2,3], {name: "Munching"})  // Create a stream called "Munching" that will output the items 0,1,2,3
     .log(m=>[m], {name:"Stream 0..3"}); // 0 1 2 3  Log each item in the stream before passing it on.
 
@@ -27,12 +28,7 @@ ParallelStream.from([0,1,2,2,1]) .uniq() .log(m=>[m], {name:"Stream uniq 0,1,2"}
 // Or slice out a range
 ParallelStream.from([0,1,2,3,4]) .slice(2,4) .log(m=>[m], {name:"Stream slice 2,3"})
 
-/* OBS old way of doing forks
-// A little more complexity allows forking a stream and running two or more sets of processing on it.
-let ss = ParallelStream.from([0,1]) .fork(2).streams;
-ss[0].log(m=>[m], {name: "ForkA 0,1"});
-ss[0].log(m=>[m], {name: "ForkB 0,1"});
-*/
+
 // A little more complexity allows forking a stream and running two or more sets of processing on it.
 let foo = ParallelStream.from([0,1])
     .fork(s=>s.log(m=>[m], {name: "ForkA 0,1"}))
@@ -48,4 +44,22 @@ ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i +
 // Reduce with no arguments is useful at the end of a chain of streams to avoid the last stream pushing back when it can't write.
 ParallelStream.from([10,20,30,40]) .reduce();
 
+*/
+// Showing how you can pipe two streams into one
+
+/*
+let foo = ParallelStream.from([0,1,2,3,4,5,6])
+let bar = ParallelStream.from([10,11,12,13,14,15,16])
+let baz = ParallelStream.log(m=>m,{name:"splat"})
+foo.pipe(baz)
+bar.pipe(baz)
+baz.reduce(); // Terminate
+*/
+
+let foo1 = ParallelStream.from([0,1,2,3,4,5,6])
+let foo2 = ParallelStream.from([10,11,12,13,14,15,16])
+let foos = ParallelStream.from([ foo1, foo2]) // Stream of streams
+let flat = foos.flatten().log(m=>m).reduce();
+
+//TODO build merge that will take a stream of streams (like flatten).
 
