@@ -27,12 +27,19 @@ ParallelStream.from([0,1,2,2,1]) .uniq() .log(m=>[m], {name:"Stream uniq 0,1,2"}
 // Or slice out a range
 ParallelStream.from([0,1,2,3,4]) .slice(2,4) .log(m=>[m], {name:"Stream slice 2,3"})
 
+/* OBS old way of doing forks
 // A little more complexity allows forking a stream and running two or more sets of processing on it.
 let ss = ParallelStream.from([0,1]) .fork(2).streams;
 ss[0].log(m=>[m], {name: "ForkA 0,1"});
 ss[0].log(m=>[m], {name: "ForkB 0,1"});
+*/
+// A little more complexity allows forking a stream and running two or more sets of processing on it.
+let foo = ParallelStream.from([0,1])
+    .fork(s=>s.log(m=>[m], {name: "ForkA 0,1"}))
+    .log(m=>[m], {name: "ForkB 0,1"});
 
 
+/*
 // Reduce works, but note that you have to use the 'function' syntax instead of (a,b)=>(a+b) if you want to use "this" for debugging.
 // The result here should be 110 as 0 is used as the initial value
 ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i + d+1) }, 0, function(res) {this.debug("SUM=", res)}, { name: "Sum=110" });
@@ -40,4 +47,4 @@ ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i +
 ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i + d+1) }, undefined, function(res) {this.debug("SUM=", res)}, { name: "Sum=109" });
 // Reduce with no arguments is useful at the end of a chain of streams to avoid the last stream pushing back when it can't write.
 ParallelStream.from([10,20,30,40]) .reduce();
-
+*/

@@ -230,9 +230,9 @@ class ParallelStream extends stream.Transform {
         ps.count = 0;
         return this.pipe(ps);
     }
-
+    /* OBSOLETE STYLE using a number of streams and returning an array, seems more javascripty to use callbacks
     fork(nstreams, options={}) {
-        /*
+        /-*
             Fork a stream into multiple streams,
             nstreams    Number of streams to fork into
             returns     Array of Parallel streams.
@@ -242,7 +242,7 @@ class ParallelStream extends stream.Transform {
          ss[0].log ...; ss[1].filter.... etc
 
             Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
-          */
+          *-/
         const defaultoptions = {
             name: "fork",
         }
@@ -273,6 +273,59 @@ class ParallelStream extends stream.Transform {
         }, options));
         ws.streams = Array.from(Array(nstreams)).map(unused=>new ParallelStream(Object.assign(defaultoptions, options)));
         return this.pipe(ws)
+    }
+    */
+    fork(...args) {
+        /*
+            Fork a stream into multiple streams,
+            args    each cb(parallelstream)
+            last arg can be {} for options
+            returns     last stream for chaining.
+
+            Usage of fork is slightly different
+            parallelstream.fork(s=>s.log(m=>m).reduce()).nextstream
+
+            Warning all streams need to properly end, e.g. with .reduce() or pushback on one fork could effect all of them
+          */
+        let options = (typeof args[args.length-1] === "object") ? args.pop() : {};
+        const defaultoptions = {
+            name: "fork",
+        }
+        let ws = new stream.Writable(Object.assign({
+            objectMode: true,
+            write(o, encoding, cb) {
+                if (typeof encoding === 'function') {
+                    cb = encoding;
+                    encoding = null;
+                } // Allow missing encoding
+                try {
+                    let firstpushback = this.streams.map(s => s.write(o) ? false : s).find(s => !!s); // Writes to all streams, catches first that has pushback
+                    if (firstpushback) {
+                        this.debug("Pushback from %s", firstpushback.name);
+                        firstpushback.once("drain", cb); // Just wait on first pushback to be ready, should be ok as if 2nd hasn't cleared it will pushback on next write
+                    } else {
+                        cb();
+                    }
+                } catch (err) { // Unlikely to have an error since should catch in pushbackable fork
+                    this.streams.map(s => s.destroy(new Error(`Failure in ${this.name}._write: ${err.message}`)));
+                    cb(err);
+                }
+            },
+            final(cb) {
+                this.streams.map(s => s.end());
+                cb();
+            }
+        },options));
+
+        ws.streams = args.map(f => {
+            let s = new ParallelStream(Object.assign(defaultoptions, options));
+            f(s);
+            return s;
+        });
+        let laststream = new ParallelStream(Object.assign(defaultoptions, options));
+        ws.streams.push(laststream);
+        this.pipe(ws); //this is the upstream pipe, returns ws
+        return laststream;
     }
     uniq(uniqfunction, options={}) {
         /*
