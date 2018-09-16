@@ -127,16 +127,17 @@ input   stream: objects
 output  stream: objects[begin...end-1]
 ```
 
-#### ParallelStream.prototype.fork(nstreams, options={})
+#### ParallelStream.prototype.fork(cb1 ... cbn, options={})
 Fork a stream into multiple streams,
 ```
-nstreams    Number of streams to fork into
-returns     Array of Parallel streams.
+cb1..cbn    f(parallelstream)
+returns     parallelstream
 ```
 Usage of fork is slightly different
 ```
-let ss =  parallelstream.fork(2).streams;
-ss[0].log ...; ss[1].filter.... etc
+let ss =  parallelstream
+    .fork(s=>s.log(m=m).reduce())
+    .filter etc
 ```
 Warning all streams need to properly end e.g. with .reduce() or pushback on one fork could effect all of them.
 
