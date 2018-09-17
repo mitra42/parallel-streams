@@ -83,13 +83,14 @@ class ParallelStream extends stream.Transform {
         try {
             this.paralleloptions.count++;
             if (this.paralleloptions.count > this.paralleloptions.max) this.paralleloptions.max = this.paralleloptions.count;
-            this._parallel(data, encoding, (err, data) => {
+            this._parallel(data, encoding, (...args) => {
+                let err = args.shift();
+                let hasdata = args.length == 1;
                 if (!this.paralleloptions.limit) {
                     donecb = true;
-                    cb(err, data);
-                } else {
-                    if (!err)
-                        this.push(data);
+                    cb(err, args.shift());
+                } else if (!err && hasdata) {  // If no arguments, then didn't explicitly send data (e.g. from cb()) so don't push undefined.   cb(null, undefined) will cause a push
+                    this.push(args.shift());
                 }
                 this.paralleloptions.count--;
             });
@@ -117,15 +118,15 @@ class ParallelStream extends stream.Transform {
         output: same object
         */
         return new ParallelStream(Object.assign({
-                parallel(data, encoding, cb) {
-                    let a = logfunction(data);
-                    a = Array.isArray(a) ? a : [a];
-                    this.debug(...a);
-                    cb(null, data) // Error in logfunction should through to catcher in _transform
-                },
-                highWaterMark: 99999,
-                name: "log"
-            },options));
+            parallel(data, encoding, cb) {
+                let a = logfunction(data);
+                a = Array.isArray(a) ? a : [a];
+                this.debug(...a);
+                cb(null, data) // Error in logfunction should through to catcher in _transform
+            },
+            highWaterMark: 99999,
+            name: "log"
+        },options));
     }
     log(logfunction, options={}) {
         return this.pipe(ParallelStream.log(logfunction, options));
@@ -136,19 +137,19 @@ class ParallelStream extends stream.Transform {
         Transform input data to output data like `Array.prototype.map()`
         */
         return new ParallelStream(Object.assign({
-                parallel(o, encoding, cb) {
-                    let p = mapfunction(o, options.async ? cb : undefined);
-                    if (p instanceof Promise) {
-                        p.then((data) => cb(null, data))
-                            .catch((err) => cb(err));
-                    } else {
-                        if (!options.async) {   // If options.async then assume mapfunction called cb
-                            cb(null, p);
-                        }
+            parallel(o, encoding, cb) {
+                let p = mapfunction(o, options.async ? cb : undefined);
+                if (p instanceof Promise) {
+                    p.then((data) => cb(null, data))
+                        .catch((err) => cb(err));
+                } else {
+                    if (!options.async) {   // If options.async then assume mapfunction called cb
+                        cb(null, p);
                     }
-                },
-                name: "map"
-            }, options));
+                }
+            },
+            name: "map"
+        }, options));
     }
     map(mapfunction, options={}) {
         return this.pipe(ParallelStream.map(mapfunction, options));
@@ -166,25 +167,26 @@ class ParallelStream extends stream.Transform {
          */
         // Usage example  writable.map(m => m*2, {name: "foo" }
         let ps = new ParallelStream(Object.assign({
-                parallel(oo, encoding, cb) {
-                    if (Array.isArray(oo)) {
-                        oo.forEach(o => this.push(o));
-                        cb();
-                    } else if (oo instanceof stream.Readable)  { //Includes Transform and Parallel streams
-                        //console.log("XXXpiping")
-                        oo.pipe(ps);
-                        cb();
-                        /* Alternative Doesnt work - had hoped would preserve order but it has write after end
-                        oo.pipe(ps,{ end: false });
-                        oo.on('end', () => {cb(); console.log("XXX oo ending")})
-                        */
-                    } else if ((typeof oo) !== "undefined") {
-                        this.push(oo);
-                        cb();
-                    }
-                },
-                name: "flatten"
-            }, options));
+            parallel(oo, encoding, cb) {
+                if (Array.isArray(oo)) {
+                    oo.forEach(o => this.push(o));
+                    cb();
+                } else if (oo instanceof stream.Readable)  { //Includes Transform and Parallel streams
+                    //console.log("XXXpiping")
+                    oo.pipe(ps);
+                    cb();
+                    /* Alternative Didn't  work - had hoped would preserve order but it has write after end TODO - retry it might work now
+                    oo.pipe(ps,{ end: false });
+                    oo.on('end', () => {cb(); console.log("XXX oo ending")})
+                    */
+                    //TODO want to detect "end" from upstream, then end of last stream written maybe in flush
+                } else if ((typeof oo) !== "undefined") {
+                    this.push(oo);
+                    cb();
+                }
+            },
+            name: "flatten"
+        }, options));
         return ps;
     }
     flatten(options={}) { return this.pipe(ParallelStream.flatten(options)); }
