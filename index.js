@@ -22,6 +22,7 @@ class ParallelStream extends stream.Transform {
                 silentwait: Set to true to remove debugging when waiting
                 },
             parallel(data, encoding, cb),   Function like transform(), including how to use push() and cb(err, data)
+            flush(cb)                       Function as for TaransformStream called once receives end , call cb when data flushed
             init()          Called at initialization
         }
 
@@ -55,10 +56,11 @@ class ParallelStream extends stream.Transform {
                 return;
             }
             if (this.paralleloptions.max) this.debug("Closing parallel. Was max= %d", this.paralleloptions.max);
+            // Drop through and call the cb if all parallel done, so didn't recurse
         } else {
             this.debug("Closing");
         }
-        cb();   // This cb is what calls flush(cb) if defined
+        cb();   // This cb is what calls flush(cb) if defined and when flush calls cb it does the writablestream.end()
     }
 
     _parallel(data, encoding, cb) {
@@ -166,30 +168,37 @@ class ParallelStream extends stream.Transform {
         TODO could add options as to whether should handle single objs as well as arrays and whether to ignore undefined
          */
         // Usage example  writable.map(m => m*2, {name: "foo" }
-        let ps = new ParallelStream(Object.assign({
+        let psOut = new ParallelStream({
+            name: options.name+" Out",
+            //parallel is not defined, uses default which is pass-through
+        });
+        let psIn = new ParallelStream({
+            name: options.name+" In",
+            paralleloptions: {limit: Infinity}, // So that we'll count the parallel out calls and decrement on cb
             parallel(oo, encoding, cb) {
+                //TODO handle Array & Obj
                 if (Array.isArray(oo)) {
-                    oo.forEach(o => this.push(o));
-                    cb();
-                } else if (oo instanceof stream.Readable)  { //Includes Transform and Parallel streams
-                    //console.log("XXXpiping")
-                    oo.pipe(ps);
-                    cb();
-                    /* Alternative Didn't  work - had hoped would preserve order but it has write after end TODO - retry it might work now
-                    oo.pipe(ps,{ end: false });
-                    oo.on('end', () => {cb(); console.log("XXX oo ending")})
-                    */
-                    //TODO want to detect "end" from upstream, then end of last stream written maybe in flush
-                } else if ((typeof oo) !== "undefined") {
+                    oo.forEach(o => psOut.push(o));
+                    cb(null);
+                } else if (oo instanceof stream.Readable) { //Includes Transform and Parallel streams
+                    oo.pipe(psOut, {end: false});
+                    oo.on('end', function () { cb(); });   // This cb will decrement the parallel count
+                } else if ((typeof oo) !== "undefined") {   // Just push singletons
                     this.push(oo);
-                    cb();
+                    cb(null);
                 }
             },
-            name: "flatten"
-        }, options));
-        return ps;
+            flush(cb) {
+                // This will be called after a) the psIn.end is called from upstream (all streams passed) *and* all oo.pipe's have also signalled end (counting down psIn.paralleloptions.count)
+                this.debug("All streams should have completed");
+                psOut.end(); // Tell psOut.end as we've explicitly stopped oo.end from causing it
+                cb();
+            },
+        });
+        psIn.out = psOut; // allows .out on a pipe to get the downstream
+        return psIn; // Allows foo.pipe(PS.flatten()).out.log(...)
     }
-    flatten(options={}) { return this.pipe(ParallelStream.flatten(options)); }
+    flatten(options={}) { return this.pipe(ParallelStream.flatten(options)).out; }
 
     static filter(filterfunction, options={}) {
         /*
