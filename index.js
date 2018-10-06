@@ -174,7 +174,7 @@ class ParallelStream extends stream.Transform {
         });
         let psIn = new ParallelStream({
             name: options.name+" In",
-            paralleloptions: {limit: Infinity}, // So that we'll count the parallel out calls and decrement on cb
+            paralleloptions: {limit: 10}, // So that we'll count the parallel out calls and decrement on cb - keep this small, the downstream should be limiting buffering, if its large its easy to exceed number of open files allowed
             parallel(oo, encoding, cb) {
                 //TODO handle Array & Obj
                 if (Array.isArray(oo)) {
