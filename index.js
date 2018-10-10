@@ -16,7 +16,7 @@ class ParallelStream extends stream.Transform {
         Create a new Parallel Stream
         options = {
             name            Set to a name to use in debugging (this.debug will be active on parallel-streams:<name>
-            paralleloptions {
+            paralleloptions { # Note this is copied, so can reuse same structure
                 limit: maximum number of threads to run in parallel
                 retryms:    How long to wait before retrying if thread count exceeded,
                 silentwait: Set to true to remove debugging when waiting
@@ -90,7 +90,7 @@ class ParallelStream extends stream.Transform {
                 let hasdata = args.length == 1;
                 if (!this.paralleloptions.limit) {
                     donecb = true;
-                    cb(err, args.shift());
+                    cb(err, args.shift());      // This should automatically handle pushback on non-parallel streams
                 } else if (!err && hasdata) {  // If no arguments, then didn't explicitly send data (e.g. from cb()) so don't push undefined.   cb(null, undefined) will cause a push
                     this.push(args.shift());
                 }
@@ -137,15 +137,17 @@ class ParallelStream extends stream.Transform {
     static map(mapfunction, options={}) {
         /*
         Transform input data to output data like `Array.prototype.map()`
+        options { async }   True if asynchronous function of form f(obj, cb)
         */
         return new ParallelStream(Object.assign({
             parallel(o, encoding, cb) {
                 let p = mapfunction(o, options.async ? cb : undefined);
                 if (p instanceof Promise) {
+                    console.assert(!options.async, "Shouldnt be doing promises and async")
                     p.then((data) => cb(null, data))
                         .catch((err) => cb(err));
                 } else {
-                    if (!options.async) {   // If options.async then assume mapfunction called cb
+                    if (!options.async) {   // If options.async then assume mapfunction() called cb above
                         cb(null, p);
                     }
                 }
