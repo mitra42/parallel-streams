@@ -12,6 +12,13 @@ that slower items don't hold up faster ones when order is unimportant.
 A set of utility functions allow using much of the functionality of Arrays on streams.
 It uses similar syntax and semantics to hopefully make code more readable. 
 
+## RELEASE NOTES
+* 0.0.12
+    * Limit flatten parallelisation as runs out of file descriptors
+    * Assertion to catch bad option case of promises and async (callbacks)
+    * Added verbose option to debug callbacks (which can be really hard to debug)
+    * Add assertion to catch cb(null, null)
+    
 ## Examples
 (also in examples.js)
 ```
