@@ -95,6 +95,7 @@ class ParallelStream extends stream.Transform {
                     if (this.verbose) debug("Callback not parallel")
                     cb(err, args.shift());      // This should automatically handle pushback on non-parallel streams
                 } else if (!err && hasdata) {  // If no arguments, then didn't explicitly send data (e.g. from cb()) so don't push undefined.   cb(null, undefined) will cause a push
+                    console.assert(args[0] !== null, "You almost certainly don't want to be sending null - end undefined if that's what you want")
                     this.push(args.shift());
                 }
                 this.paralleloptions.count--;
@@ -109,7 +110,7 @@ class ParallelStream extends stream.Transform {
             this.paralleloptions.count--;
             if (!donecb)
                 if (this.verbose)  debug("Callback error")
-                cb(err);
+            cb(err);
         }
 
     }
