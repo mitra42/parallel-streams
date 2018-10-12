@@ -15,6 +15,7 @@ class ParallelStream extends stream.Transform {
         /*
         Create a new Parallel Stream
         options = {
+            verbose         To get console logging on cb - useful when figuring out why prematurely closing
             name            Set to a name to use in debugging (this.debug will be active on parallel-streams:<name>
             paralleloptions { # Note this is copied, so can reuse same structure
                 limit: maximum number of threads to run in parallel
@@ -41,6 +42,7 @@ class ParallelStream extends stream.Transform {
         delete options.paralleloptions;
         super(Object.assign(defaultopts, options));
         this.paralleloptions = paralleloptions;
+        this.verbose = options.verbose;
         if (options.parallel) { this._parallel = options.parallel; }   // Optional function to replace _parallel implemented here
         this.name = options.name || "ParallelStream";
         this.debug = debug(`parallel-streams:${options.name.replace(' ','_')}`); // Debugger for this log stream
@@ -55,7 +57,7 @@ class ParallelStream extends stream.Transform {
                 setTimeout(()=>this._final(cb), 1000);
                 return;
             }
-            if (this.paralleloptions.max) this.debug("Closing parallel. Was max= %d", this.paralleloptions.max);
+            if (this.paralleloptions.max || this.verbose) this.debug("Closing parallel. Was max= %d", this.paralleloptions.max);
             // Drop through and call the cb if all parallel done, so didn't recurse
         } else {
             this.debug("Closing");
@@ -90,6 +92,7 @@ class ParallelStream extends stream.Transform {
                 let hasdata = args.length == 1;
                 if (!this.paralleloptions.limit) {
                     donecb = true;
+                    if (this.verbose) debug("Callback not parallel")
                     cb(err, args.shift());      // This should automatically handle pushback on non-parallel streams
                 } else if (!err && hasdata) {  // If no arguments, then didn't explicitly send data (e.g. from cb()) so don't push undefined.   cb(null, undefined) will cause a push
                     this.push(args.shift());
@@ -98,12 +101,14 @@ class ParallelStream extends stream.Transform {
             });
             if (this.paralleloptions.limit) {
                 donecb = true;
+                if (this.verbose) debug("Callback parallel")
                 cb(null);   // Return quickly and allow push to pass it on
             }
         } catch(err) { // Shouldnt catch errors - they should only happen inside _parallel and be caught there, triggering cb(err)
             console.error(name, "._transform caught error from _parallel", err.message);
             this.paralleloptions.count--;
             if (!donecb)
+                if (this.verbose)  debug("Callback error")
                 cb(err);
         }
 
