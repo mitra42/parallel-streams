@@ -13,6 +13,8 @@ A set of utility functions allow using much of the functionality of Arrays on st
 It uses similar syntax and semantics to hopefully make code more readable. 
 
 ## RELEASE NOTES
+* 0.0.14
+    * Add justReportError parameter to allow errors to be ignored.
 * 0.0.12
     * Limit flatten parallelisation as runs out of file descriptors
     * Assertion to catch bad option case of promises and async (callbacks)
@@ -70,8 +72,10 @@ options = {
     parallel(data, encoding, cb),   Function like transform(), including how to use push() and cb(err, data)
     init()          Called at initialization 
     //Inherited from TransformStream:
-    flush(cb)   runs at completion before the stream is closed, should call cb when complete.
+    flush(cb)       runs at completion before the stream is closed, should call cb when complete.
     highWaterMark   int Sets how many data items can be queued up
+    verbose         True to get some debugging, especially around callbacks
+    justReportError Normally an error gets sent downstream, theoretically causing a (clean) terminate. Set this if want errors ignored.
 }
 ```
 The main differences with TransformStream are:
@@ -112,6 +116,9 @@ e.g. .log(data => ["Handling %o", data])
 
 #### ParallelStream.prototype.map(f(data)=>obj, options={}) or (f(data,cb)=>obj, {async:true,...})
 
+```
+async   If true, then cb(err,data) is called by the function when it is 'complete' rather than returning a value. 
+```
 Transform input data to output data like `Array.prototype.map()`
 
 e.g. `.map(data => inp**2)`

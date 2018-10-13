@@ -43,6 +43,7 @@ class ParallelStream extends stream.Transform {
         super(Object.assign(defaultopts, options));
         this.paralleloptions = paralleloptions;
         this.verbose = options.verbose;
+        this.justReportError = options.justReportError;
         if (options.parallel) { this._parallel = options.parallel; }   // Optional function to replace _parallel implemented here
         this.name = options.name || "ParallelStream";
         this.debug = debug(`parallel-streams:${options.name.replace(' ','_')}`); // Debugger for this log stream
@@ -89,6 +90,10 @@ class ParallelStream extends stream.Transform {
             if (this.paralleloptions.count > this.paralleloptions.max) this.paralleloptions.max = this.paralleloptions.count;
             this._parallel(data, encoding, (...args) => {
                 let err = args.shift();
+                if (this.justReportError) { // Can skip errors, this might or might not work but sometimes dont want an error (e.g. file read failure) flowing down
+                    debug("Error caught in Parallel Streams._transform");
+                    err = null;
+                }
                 let hasdata = args.length == 1;
                 if (!this.paralleloptions.limit) {
                     donecb = true;
@@ -108,9 +113,10 @@ class ParallelStream extends stream.Transform {
         } catch(err) { // Shouldnt catch errors - they should only happen inside _parallel and be caught there, triggering cb(err)
             console.error(name, "._transform caught error from _parallel", err.message);
             this.paralleloptions.count--;
-            if (!donecb)
-                if (this.verbose)  debug("Callback error")
-            cb(err);
+            if (!donecb) {
+                if (this.verbose) debug("Callback on error");
+                cb(err);
+            }
         }
 
     }
