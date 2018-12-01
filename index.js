@@ -198,7 +198,7 @@ class ParallelStream extends stream.Transform {
                     oo.pipe(psOut, {end: false});
                     oo.on('end', function () { cb(); });   // This cb will decrement the parallel count
                 } else if ((typeof oo) !== "undefined") {   // Just push singletons
-                    this.push(oo);
+                    psOut.push(oo);
                     cb(null);
                 }
             },
