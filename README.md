@@ -59,7 +59,24 @@ ParallelStream.from([10,20,30,40]) .reduce(function(acc,d,i) { return (acc + i +
 ParallelStream.from([10,20,30,40]) .reduce();
 ```
 
+## Summary
+
+* paralleloptions - {limit, retryms, silentwait}
+* options = {name, paralleloptions, parallel(data,encoding,cb), init(), flush(cb), highWaterMark, verbose, just ReportError, async}
+* ParallelStream(options) -> stream: create new ParallelStream
+* ps.log(f(data)=>string, options): Output debugging 
+* ps.map(f(data)=>obj, options); (esp options async: true); stream of modified objects
+* ps.flatten(options); stream of streams to concatenated stream
+* ps.filter(f(data)=>boolean, options); stream of objects where f(obj)
+* ps.slice(begin, end, options) => subset of s
+* ps.fork(f(ps)..., options) => Fork stream into other functions 
+* ps.uniq(f(data)=>string, options) => stream containing only uniq members (optional f(data) provides a uniqueness funciton)
+* ps.from(arr, options) => stream from array - often first step of a pipeline
+* ps.reduce(f(acc, data, index) => acc, initialAcc, cb(data), options); reduce a stream to a single value
+
+
 ## API
+
 ####ParallelStream(options) - Create a new Parallel Stream
 ```
 options = {
@@ -76,6 +93,7 @@ options = {
     highWaterMark   int Sets how many data items can be queued up
     verbose         True to get some debugging, especially around callbacks
     justReportError Normally an error gets sent downstream, theoretically causing a (clean) terminate. Set this if want errors ignored.
+    async           In .map the function is asynchronous
 }
 ```
 The main differences with TransformStream are:
