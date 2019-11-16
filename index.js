@@ -370,7 +370,9 @@ class ParallelStream extends stream.Transform {
                 let i;
                 while (typeof(i = ediblearr.shift()) !== "undefined") {
                     if (!through.write(i)) { // It still got written, but there is pushback
-                        through.debug("Pushing back on array, %d items left", ediblearr.length);
+                        if (!this.silentwait) {
+                            through.debug("Pushing back on array, %d items left", ediblearr.length);
+                        }
                         through.once("drain", _pushbackablewrite);
                         return; // Without finishing
                     }

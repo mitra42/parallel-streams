@@ -9,7 +9,7 @@
   },
   "name": "parallel-streams",
   "dependencies": {
-    "debug": "latest",
+    "debug": "^4.1.1",
     "readable-stream": "^3.0.2"
   },
   "description": "Array functions and parallelism for streams",
@@ -22,5 +22,5 @@
     "url": "git://github.com/mitra42/parallel-streams.git"
   },
   "scripts": {},
-  "version": "0.0.14"
+  "version": "0.0.15"
 }
