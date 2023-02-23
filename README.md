@@ -212,6 +212,15 @@ Note that reduce() is the only one of the above functions (other than fork) that
 This makes it suitable for ending a chain of streams to avoid the last stream pushing back. Expect to see 
 `.reduce()` At the end of most pipelines.
 
+## Ordering
+parallel-streams, as currently implemented, does NOT preserve the order in the streams.   
 
+This is intentional as the use case is to perform a bunch of tasks that will typically have an asynchronous component,
+For example it is used in (dweb-mirror)[https://github.com/internetarchive/dweb-mirror] to crawl an Internet Archive collection, 
+retrieve, process, and cache files based on various rules. 
+
+If the function (parallel) is synchronous, then that particular step in the chain should not re-order things, but (currently) that is not guarranteed.
+
+See (issue#1)[https://github.com/mitra42/parallel-streams/issues/1] re potentially adding a flag to control the re-ordering behavior. 
 
 
