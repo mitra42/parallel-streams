@@ -216,8 +216,7 @@ This makes it suitable for ending a chain of streams to avoid the last stream pu
 parallel-streams, as currently implemented, does NOT preserve the order in the streams.   
 
 This is intentional as the use case is to perform a bunch of tasks that will typically have an asynchronous component,
-For example it is used in (dweb-mirror)[https://github.com/internetarchive/dweb-mirror] to crawl an Internet Archive collection, 
-retrieve, process, and cache files based on various rules. 
+For example it was used to crawl a resource - filter some contents, then retrieve the selected contents to a cache directory.
 
 If the function (parallel) is synchronous, then that particular step in the chain should not re-order things, but (currently) that is not guarranteed.
 
